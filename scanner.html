@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-900">
+    <div
+      id="scannerContainer"
+      class="max-w-3xl mx-auto p-6 mt-10 bg-white shadow-lg rounded-md transition-all duration-300"
+    >
+      <h1 class="text-3xl font-bold text-center mb-4">Pulse Scanner</h1>
+      <p class="text-center text-gray-600 mb-4">
+        Click the toggle below to start or stop scanning.
+      </p>
+
+      <div class="text-center mb-6">
+        <button
+          id="toggleScan"
+          class="px-6 py-2 font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
+        >
+          Start Scanning
+        </button>
+      </div>
+
+      <video id="video" autoplay playsinline style="display: none"></video>
+
+      <!-- Bib Assignment Form -->
+      <div
+        id="bibForm"
+        class="hidden bg-yellow-50 border border-yellow-300 p-4 rounded-md mb-6"
+      >
+        <h2 class="font-semibold text-lg mb-2">Assign Bib Number</h2>
+        <p id="bibDetails" class="text-sm mb-2 text-gray-700"></p>
+        <input
+          id="bibInput"
+          type="text"
+          placeholder="Enter Bib Number"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md mb-3"
+        />
+        <button
+          onclick="submitBib()"
+          class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-md transition"
+        >
+          Confirm Entry
+        </button>
+      </div>
+
+      <!-- Scanned Entries Table -->
+      <div id="scannedSection" class="mb-6 hidden">
+        <h2 class="text-xl font-semibold mb-4">Scanned Entries</h2>
+        <div class="overflow-x-auto rounded-md border">
+          <table class="w-full text-sm text-left text-gray-700">
+            <thead class="bg-gray-100 border-b text-gray-700">
+              <tr>
+                <th class="px-4 py-2 text-left">Name</th>
+                <th class="px-4 py-2 text-left">License</th>
+                <th class="px-4 py-2 text-left">Bib Number</th>
+                <th class="px-4 py-2 text-left">Start Time</th>
+                <th class="px-4 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="scannedTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-4 mb-4">
+        <button
+          onclick="downloadCSV()"
+          class="flex-1 bg-gray-500 hover:bg-indigo-700 text-white font-semibold py-2 rounded-md transition"
+        >
+          Download CSV
+        </button>
+        <button
+          onclick="resetAll()"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-md transition"
+        >
+          Reset All Data
+        </button>
+      </div>
+
+      <p id="errorMsg" class="text-center text-red-600 mt-4 hidden"></p>
+    </div>
+
+    <script>
+      const video = document.getElementById("video");
+      const toggleBtn = document.getElementById("toggleScan");
+      const container = document.getElementById("scannerContainer");
+      const bibForm = document.getElementById("bibForm");
+      const bibDetails = document.getElementById("bibDetails");
+      const bibInput = document.getElementById("bibInput");
+      const errorMsg = document.getElementById("errorMsg");
+      const scannedSection = document.getElementById("scannedSection");
+      const scannedTableBody = document.getElementById("scannedTableBody");
+
+      let codeReader;
+      let isScanning = false;
+      let currentParticipant = null;
+      let scannedEntries = [];
+
+      // Load from localStorage
+      window.onload = () => {
+        const saved = localStorage.getItem("scannedEntries");
+        if (saved) {
+          scannedEntries = JSON.parse(saved);
+          scannedSection.classList.remove("hidden");
+          scannedEntries.forEach((entry) => appendTableRow(entry));
+        }
+      };
+
+      toggleBtn.addEventListener("click", () => {
+        isScanning ? stopScanner() : startScanner();
+      });
+
+      function startScanner() {
+        navigator.mediaDevices
+          .getUserMedia({ video: { facingMode: "environment" } })
+          .then((stream) => {
+            video.srcObject = stream;
+            video.play();
+
+            codeReader = new ZXing.BrowserQRCodeReader();
+
+            codeReader.decodeFromVideoElementContinuously(
+              video,
+              (result, err) => {
+                if (result && !currentParticipant) {
+                  try {
+                    const payload = result.getText();
+                    const [name, email] = atob(payload)
+                      .split("|")
+                      .map((str) => str.trim());
+
+                    // 🛑 Check 1: Same QR scanned before
+                    if (scannedEntries.find((e) => e.code === payload)) {
+                      showToast("This QR code has already been scanned.");
+                      return;
+                    }
+
+                    // 🛑 Check 2: Same email used with different name
+                    const existing = scannedEntries.find(
+                      (e) => e.email === email
+                    );
+                    if (existing && existing.name !== name) {
+                      showToast(
+                        `This License Number is already used by "${existing.name}".`
+                      );
+                      return;
+                    }
+
+                    currentParticipant = { name, email, code: payload };
+                    showBibForm(name, email);
+                    clearError();
+                  } catch {
+                    showToast("Invalid QR code format.");
+                  }
+                }
+              }
+            );
+
+            isScanning = true;
+            updateUIState();
+          })
+          .catch((err) => {
+            showToast("Camera error: " + err);
+          });
+      }
+
+      function stopScanner() {
+        if (codeReader) {
+          codeReader.reset();
+          codeReader = null;
+        }
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach((track) => track.stop());
+          video.srcObject = null;
+        }
+
+        isScanning = false;
+        updateUIState();
+      }
+
+      function updateUIState() {
+        toggleBtn.textContent = isScanning ? "Stop Scanning" : "Start Scanning";
+        toggleBtn.classList.toggle("bg-blue-600", !isScanning);
+        toggleBtn.classList.toggle("hover:bg-blue-700", !isScanning);
+        toggleBtn.classList.toggle("bg-red-600", isScanning);
+        toggleBtn.classList.toggle("hover:bg-red-700", isScanning);
+
+        container.classList.toggle("border-4", isScanning);
+        container.classList.toggle("border-green-500", isScanning);
+      }
+
+      function showBibForm(name, email) {
+        bibDetails.textContent = `Name: ${name} | Email: ${email}`;
+        bibForm.classList.remove("hidden");
+        bibInput.focus();
+      }
+
+      function submitBib() {
+        const bib = bibInput.value.trim();
+        if (!bib) {
+          alert("Please enter a bib number.");
+          return;
+        }
+
+        const timestamp = new Date().toISOString();
+        const entry = {
+          ...currentParticipant,
+          bib,
+          timestamp,
+        };
+
+        scannedEntries.push(entry);
+        localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
+
+        appendTableRow(entry);
+
+        currentParticipant = null;
+        bibInput.value = "";
+        bibForm.classList.add("hidden");
+        scannedSection.classList.remove("hidden");
+      }
+
+      function appendTableRow(entry) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+    <td class="px-4 py-2">${entry.name}</td>
+    <td class="px-4 py-2">${entry.email}</td>
+    <td class="px-4 py-2">${entry.bib}</td>
+    <td class="px-4 py-2">${entry.timestamp}</td>
+    <td class="px-4 py-2 text-right">
+      <button onclick="removeEntry('${entry.code}')" class="text-red-600 hover:underline">Remove</button>
+    </td>
+  `;
+
+        scannedTableBody.appendChild(row);
+      }
+
+      function downloadCSV() {
+        if (!scannedEntries.length) {
+          alert("No entries to download.");
+          return;
+        }
+
+        const csv =
+          "data:text/csv;charset=utf-8," +
+          ["Name,Email,Bib Number,Timestamp"]
+            .concat(
+              scannedEntries.map(
+                (e) => `"${e.name}","${e.email}","${e.bib}","${e.timestamp}"`
+              )
+            )
+            .join("\n");
+
+        const encodedUri = encodeURI(csv);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "scanned_entries.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function clearError() {
+        errorMsg.textContent = "";
+        errorMsg.classList.add("hidden");
+      }
+
+      function resetAll() {
+        if (!confirm("Are you sure you want to delete all scanned entries?"))
+          return;
+
+        scannedEntries = [];
+        localStorage.removeItem("scannedEntries");
+        scannedTableBody.innerHTML = "";
+        scannedSection.classList.add("hidden");
+      }
+
+      function removeEntry(code) {
+        if (!confirm("Remove this entry?")) return;
+
+        scannedEntries = scannedEntries.filter((e) => e.code !== code);
+        localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
+
+        // Clear and rebuild table
+        scannedTableBody.innerHTML = "";
+        scannedEntries.forEach((entry) => appendTableRow(entry));
+
+        if (scannedEntries.length === 0) {
+          scannedSection.classList.add("hidden");
+        }
+      }
+
+      function showToast(message, type = "error") {
+        const toast = document.getElementById("toast");
+        const toastMsg = document.getElementById("toastMessage");
+
+        toastMsg.textContent = message;
+
+        // Apply type styles
+        toast.classList.remove("bg-red-600", "bg-green-600", "bg-yellow-500");
+        if (type === "error") toast.classList.add("bg-red-600");
+        else if (type === "success") toast.classList.add("bg-green-600");
+        else if (type === "warning") toast.classList.add("bg-yellow-500");
+
+        toast.classList.add("opacity-100");
+
+        setTimeout(() => {
+          toast.classList.remove("opacity-100");
+        }, 3000);
+      }
+    </script>
+  </body>
+  <!-- Toast Notification -->
+  <div
+    id="toast"
+    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50"
+  >
+    <span id="toastMessage"></span>
+  </div>
+</html>
