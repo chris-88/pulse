@@ -17,6 +17,37 @@
         Click the toggle below to start or stop scanning.
       </p>
 
+      <!-- Event + Mode Controls -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label
+            for="eventInput"
+            class="block text-sm font-medium text-gray-700 mb-1"
+            >Event Name</label
+          >
+          <input
+            id="eventInput"
+            type="text"
+            placeholder="e.g. Charity Run 2025"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Mode</label
+          >
+          <button
+            id="modeToggle"
+            onclick="toggleMode()"
+            class="w-full px-4 py-2 font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition"
+          >
+            Mode: Sign In
+          </button>
+        </div>
+      </div>
+
+      <!-- Scanning Toggle -->
       <div class="text-center mb-6">
         <button
           id="toggleScan"
@@ -56,10 +87,12 @@
           <table class="w-full text-sm text-left text-gray-700">
             <thead class="bg-gray-100 border-b text-gray-700">
               <tr>
+                <th class="px-4 py-2 text-left">Event</th>
                 <th class="px-4 py-2 text-left">Name</th>
                 <th class="px-4 py-2 text-left">License</th>
                 <th class="px-4 py-2 text-left">Bib Number</th>
                 <th class="px-4 py-2 text-left">Start Time</th>
+                <th class="px-4 py-2 text-left">Finish Time</th>
                 <th class="px-4 py-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -101,6 +134,8 @@
       let isScanning = false;
       let currentParticipant = null;
       let scannedEntries = [];
+      let currentMode = "signin"; // "signin" or "signout"
+      let currentEvent = "";
 
       // Load from localStorage
       window.onload = () => {
@@ -135,21 +170,40 @@
                       .split("|")
                       .map((str) => str.trim());
 
-                    // 🛑 Check 1: Same QR scanned before
-                    if (scannedEntries.find((e) => e.code === payload)) {
-                      showToast("This QR code has already been scanned.");
-                      return;
-                    }
+                    if (currentMode === "signin") {
+                      // Block duplicate QR code
+                      if (scannedEntries.find((e) => e.code === payload)) {
+                        showToast("This QR code has already been scanned.");
+                        return;
+                      }
 
-                    // 🛑 Check 2: Same email used with different name
-                    const existing = scannedEntries.find(
-                      (e) => e.email === email
-                    );
-                    if (existing && existing.name !== name) {
-                      showToast(
-                        `This License Number is already used by "${existing.name}".`
+                      // Block same email used by a different person
+                      const existing = scannedEntries.find(
+                        (e) => e.email === email
                       );
-                      return;
+                      if (existing && existing.name !== name) {
+                        showToast(
+                          `This email is already used by "${existing.name}".`
+                        );
+                        return;
+                      }
+                    } else if (currentMode === "signout") {
+                      const existing = scannedEntries.find(
+                        (e) =>
+                          e.email === email &&
+                          e.event ===
+                            document
+                              .getElementById("eventInput")
+                              .value.trim() &&
+                          !e.finishTime
+                      );
+
+                      if (!existing) {
+                        showToast(
+                          "This user hasn't signed in or is already signed out."
+                        );
+                        return;
+                      }
                     }
 
                     currentParticipant = { name, email, code: payload };
@@ -197,49 +251,101 @@
 
       function showBibForm(name, email) {
         bibDetails.textContent = `Name: ${name} | Email: ${email}`;
-        bibForm.classList.remove("hidden");
-        bibInput.focus();
+
+        if (currentMode === "signin") {
+          bibForm.classList.remove("hidden");
+          bibInput.focus();
+        } else if (currentMode === "signout") {
+          // Auto-submit for sign-out, no bib required
+          submitBib();
+        }
       }
 
       function submitBib() {
-        const bib = bibInput.value.trim();
-        if (!bib) {
-          alert("Please enter a bib number.");
+        currentEvent = document.getElementById("eventInput").value.trim();
+
+        if (!currentEvent) {
+          showToast("Please enter an event name first.");
           return;
         }
 
         const timestamp = new Date().toISOString();
-        const entry = {
-          ...currentParticipant,
-          bib,
-          timestamp,
-        };
 
-        scannedEntries.push(entry);
-        localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
+        if (currentMode === "signin") {
+          const bib = bibInput.value.trim();
+          if (!bib) {
+            alert("Please enter a bib number.");
+            return;
+          }
 
-        appendTableRow(entry);
+          const entry = {
+            ...currentParticipant,
+            bib,
+            event: currentEvent,
+            startTime: timestamp,
+            finishTime: "",
+          };
+
+          scannedEntries.push(entry);
+          localStorage.setItem(
+            "scannedEntries",
+            JSON.stringify(scannedEntries)
+          );
+          appendTableRow(entry);
+          scannedSection.classList.remove("hidden");
+        } else if (currentMode === "signout") {
+          const existing = scannedEntries.find(
+            (e) =>
+              e.email === currentParticipant.email &&
+              e.event === currentEvent &&
+              !e.finishTime
+          );
+
+          if (existing) {
+            existing.finishTime = timestamp;
+            localStorage.setItem(
+              "scannedEntries",
+              JSON.stringify(scannedEntries)
+            );
+            rebuildTable();
+          } else {
+            showToast("This user hasn't signed in or is already signed out.");
+          }
+        }
 
         currentParticipant = null;
         bibInput.value = "";
         bibForm.classList.add("hidden");
-        scannedSection.classList.remove("hidden");
       }
 
       function appendTableRow(entry) {
         const row = document.createElement("tr");
+        const formatTime = (iso) => {
+          if (!iso) return "";
+          const d = new Date(iso);
+          return d.toLocaleTimeString("en-GB", { hour12: false }); // 24-hour format
+        };
 
         row.innerHTML = `
-    <td class="px-4 py-2">${entry.name}</td>
-    <td class="px-4 py-2">${entry.email}</td>
-    <td class="px-4 py-2">${entry.bib}</td>
-    <td class="px-4 py-2">${entry.timestamp}</td>
-    <td class="px-4 py-2 text-right">
-      <button onclick="removeEntry('${entry.code}')" class="text-red-600 hover:underline">Remove</button>
-    </td>
-  `;
+  <td class="px-4 py-2">${entry.event}</td>
+  <td class="px-4 py-2">${entry.name}</td>
+  <td class="px-4 py-2">${entry.email}</td>
+  <td class="px-4 py-2">${entry.bib || ""}</td>
+  <td class="px-4 py-2">${formatTime(entry.startTime)}</td>
+  <td class="px-4 py-2">${formatTime(entry.finishTime)}</td>
+  <td class="px-4 py-2 text-right">
+    <button onclick="removeEntry('${
+      entry.code
+    }')" class="text-red-600 hover:underline">Remove</button>
+  </td>
+`;
 
         scannedTableBody.appendChild(row);
+      }
+
+      function rebuildTable() {
+        scannedTableBody.innerHTML = "";
+        scannedEntries.forEach(appendTableRow);
       }
 
       function downloadCSV() {
@@ -314,6 +420,21 @@
         setTimeout(() => {
           toast.classList.remove("opacity-100");
         }, 3000);
+      }
+
+      function toggleMode() {
+        currentMode = currentMode === "signin" ? "signout" : "signin";
+        const btn = document.getElementById("modeToggle");
+
+        if (currentMode === "signin") {
+          btn.textContent = "Mode: Sign In";
+          btn.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
+          btn.classList.add("bg-green-600", "hover:bg-green-700");
+        } else {
+          btn.textContent = "Mode: Sign Out";
+          btn.classList.remove("bg-green-600", "hover:bg-green-700");
+          btn.classList.add("bg-yellow-600", "hover:bg-yellow-700");
+        }
       }
     </script>
   </body>
