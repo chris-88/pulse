@@ -10,29 +10,19 @@
     />
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/heroicons@2.0.13/dist/heroicons.min.js"></script>
     <style>
       body {
         font-family: "Montserrat", sans-serif;
         background: linear-gradient(to bottom right, #f1f1f1, #dfe4ea);
       }
+
       .glass {
         background: rgba(255, 255, 255, 0.75);
         backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2);
       }
-      .terminal-border {
-        border: 1px solid #d0d0d0;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      .scanner-button {
-        transition: all 0.2s ease-in-out;
-      }
-      .scanner-button:hover {
-        transform: scale(1.02);
-      }
 
-      /* Flash effect on successful scan */
       .flash-success {
         animation: flash-green 0.4s ease-out;
       }
@@ -45,67 +35,82 @@
           background-color: transparent;
         }
       }
+
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 50;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      }
     </style>
   </head>
+
   <body class="min-h-screen flex items-center justify-center p-6">
     <div
       id="scannerContainer"
-      class="w-full max-w-6xl p-8 glass rounded-xl terminal-border border-red-500"
+      class="w-full max-w-6xl p-8 glass rounded-xl border-2 border-red-500 transition-all duration-300"
     >
       <h1 class="text-4xl font-semibold text-center text-gray-800 mb-6">
-        Pulse Access Scanner
+        Pulse Register
       </h1>
 
-      <div class="grid sm:grid-cols-3 gap-4 mb-6">
-        <div>
-          <input
-            id="eventInput"
-            type="text"
-            placeholder="Event Name"
-            class="w-full px-4 py-2 bg-white/70 text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </div>
-        <div>
-          <button
-            id="modeToggle"
-            onclick="toggleMode()"
-            class="w-full px-4 py-2 font-semibold rounded-md text-black border border-gray-300 scanner-button"
+      <div class="flex items-center gap-4 mb-6">
+        <!-- Event Input -->
+        <input
+          id="eventInput"
+          type="text"
+          placeholder="Please provide an Event Name..."
+          class="flex-grow px-4 py-2 bg-white/70 text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+
+        <!-- Scan Toggle Icon Button -->
+        <button
+          id="toggleScan"
+          onclick="toggleScanner()"
+          class="p-3 rounded-full bg-white border-2 border-red-500 hover:shadow transition"
+          aria-label="Toggle Scanner"
+        >
+          <!-- Custom SVG Icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-6 h-6 text-gray-700"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
           >
-            Sign In
-          </button>
-        </div>
-        <div class="text-center mb-6">
-          <button
-            id="toggleScan"
-            class="w-full px-4 py-2 font-semibold rounded-md text-black border border-gray-300 scanner-button"
-          >
-            Start Scanning
-          </button>
-        </div>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5Z
+         M3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5Z
+         M13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z"
+            />
+          </svg>
+        </button>
       </div>
 
-      <!-- Bib Entry -->
-      <div class="hidden mb-6" id="bibForm">
-        <div class="bg-white/50 border border-gray-300 p-4 rounded-md shadow">
-          <p class="text-gray-700 mb-2" id="bibDetails">
-            Assign bib number to scanned participant.
-          </p>
-          <input
-            id="bibInput"
-            type="text"
-            placeholder="Enter Bib Number"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md mb-3"
-          />
-          <button
-            onclick="submitBib()"
-            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-md"
-          >
-            Confirm Entry
-          </button>
-        </div>
-      </div>
-
-      <!-- Scanned Table -->
+      <!-- Scanned Entries Table -->
       <div id="scannedSection" class="mb-6 hidden">
         <h2 class="text-2xl font-semibold mb-4 text-gray-700">
           Scanned Entries
@@ -120,7 +125,7 @@
                 <th class="px-4 py-2">Bib</th>
                 <th class="px-4 py-2">Start</th>
                 <th class="px-4 py-2">Finish</th>
-                <th class="px-4 py-2 text-right">Actions</th>
+                <th class="px-4 py-2 text-right">Remove</th>
               </tr>
             </thead>
             <tbody id="scannedTableBody"></tbody>
@@ -128,8 +133,11 @@
         </div>
       </div>
 
-      <!-- Buttons -->
-      <div class="flex flex-col sm:flex-row gap-4">
+      <!-- Admin Buttons (hidden until unlock) -->
+      <div
+        class="flex flex-col sm:flex-row gap-4 mt-6 hidden"
+        id="adminControls"
+      >
         <button
           onclick="downloadCSV()"
           class="flex-1 bg-gray-700 hover:bg-gray-900 text-white font-semibold py-2 rounded-md"
@@ -144,10 +152,7 @@
         </button>
       </div>
 
-      <!-- Hidden Scanner Video -->
-      <video id="video" autoplay playsinline style="display: none"></video>
-
-      <!-- Toast Notification -->
+      <!-- Toast -->
       <div
         id="toast"
         class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50"
@@ -155,7 +160,31 @@
         <span id="toastMessage"></span>
       </div>
 
-      <!-- Toast Sounds -->
+      <!-- Modal for Bib Assignment -->
+      <div id="bibModal" class="modal">
+        <div class="modal-content">
+          <h3 class="text-xl font-semibold mb-4" id="modalName"></h3>
+          <p class="text-gray-600 mb-2" id="modalLicense"></p>
+          <div class="flex gap-2 mb-4" id="quickBibs"></div>
+          <input
+            id="bibInput"
+            type="text"
+            placeholder="Or enter bib manually"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md mb-4"
+          />
+          <button
+            onclick="confirmBib()"
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-md"
+          >
+            Confirm Bib
+          </button>
+        </div>
+      </div>
+
+      <!-- Hidden video feed -->
+      <video id="video" autoplay playsinline style="display: none"></video>
+
+      <!-- Sounds -->
       <audio
         id="sound-success"
         src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
@@ -172,54 +201,55 @@
         preload="auto"
       ></audio>
     </div>
-
-    <!-- All JavaScript at Bottom -->
     <script>
+      // Grab key DOM elements
       const video = document.getElementById("video");
+      const container = document.getElementById("scannerContainer");
+      const scannedTableBody = document.getElementById("scannedTableBody");
       const toast = document.getElementById("toast");
       const toastMsg = document.getElementById("toastMessage");
-      const container = document.getElementById("scannerContainer");
-      const toggleBtn = document.getElementById("toggleScan");
-      const bibForm = document.getElementById("bibForm");
-      const bibInput = document.getElementById("bibInput");
-      const bibDetails = document.getElementById("bibDetails");
-      const scannedTableBody = document.getElementById("scannedTableBody");
+      const adminControls = document.getElementById("adminControls");
 
-      function updateContainerState() {
-        container.classList.remove("border-green-500", "border-red-500");
-        container.classList.add(
-          isScanning ? "border-green-500" : "border-red-500"
-        );
-      }
+      const bibModal = document.getElementById("bibModal");
+      const modalName = document.getElementById("modalName");
+      const modalLicense = document.getElementById("modalLicense");
+      const bibInput = document.getElementById("bibInput");
+      const quickBibs = document.getElementById("quickBibs");
 
       let codeReader,
-        isScanning = false,
-        currentParticipant = null;
-      let scannedEntries = [],
-        currentMode = "signin",
-        currentEvent = "";
+        isScanning = false;
+      let scannedEntries = [];
+      let currentEvent = "";
+      let currentParticipant = null;
 
+      // Load existing entries on page load
       window.onload = () => {
         const saved = localStorage.getItem("scannedEntries");
         if (saved) {
           scannedEntries = JSON.parse(saved);
-          document.getElementById("scannedSection").classList.remove("hidden");
-          scannedEntries.forEach(appendTableRow);
+          if (scannedEntries.length) {
+            document
+              .getElementById("scannedSection")
+              .classList.remove("hidden");
+            scannedEntries.forEach(appendTableRow);
+          }
         }
       };
 
-      function toggleMode() {
-        currentMode = currentMode === "signin" ? "signout" : "signin";
-        const btn = document.getElementById("modeToggle");
-        btn.textContent = currentMode === "signin" ? "Sign In" : "Sign Out";
-        btn.classList.toggle("bg-yellow-600");
-        btn.classList.toggle("bg-green-600");
-      }
+      // Toggle scanner state
+      document.getElementById("toggleScan").addEventListener("click", () => {
+        isScanning ? stopScanner() : startScanner();
+      });
 
-      toggleBtn.addEventListener("click", () =>
-        isScanning ? stopScanner() : startScanner()
-      );
+      // Admin unlock key sequence (Shift+D)
+      document.addEventListener("keydown", (e) => {
+        if (e.shiftKey && e.key.toLowerCase() === "d") {
+          adminControls.classList.remove("hidden");
+          showToast("Admin controls unlocked", "info");
+        }
+      });
 
+      // Start QR code scanning
       function startScanner() {
         navigator.mediaDevices
           .getUserMedia({ video: { facingMode: "environment" } })
@@ -231,72 +261,15 @@
               video,
               (result, err) => {
                 if (result && !currentParticipant) {
-                  try {
-                    const [name, email] = atob(result.getText())
-                      .split("|")
-                      .map((str) => str.trim());
-                    const payload = result.getText();
-                    const eventName = document
-                      .getElementById("eventInput")
-                      .value.trim();
-                    if (!eventName)
-                      return showToast("Please enter an event name.", "error");
-                    currentEvent = eventName;
-
-                    if (currentMode === "signin") {
-                      if (scannedEntries.find((e) => e.code === payload))
-                        return showToast(
-                          "This QR has already been scanned.",
-                          "error"
-                        );
-                      const existing = scannedEntries.find(
-                        (e) => e.email === email
-                      );
-                      if (existing && existing.name !== name)
-                        return showToast(
-                          "This license is already used by another participant.",
-                          "error"
-                        );
-
-                      currentParticipant = { name, email, code: payload };
-                      bibForm.classList.remove("hidden");
-                      bibDetails.textContent = `Assign Bib Number to ${name} (${email})`;
-                      bibInput.focus();
-                    } else {
-                      const existing = scannedEntries.find(
-                        (e) =>
-                          e.email === email &&
-                          e.event === eventName &&
-                          !e.finishTime
-                      );
-                      if (!existing)
-                        return showToast(
-                          "User not signed in or already signed out.",
-                          "error"
-                        );
-
-                      existing.finishTime = new Date().toISOString();
-                      localStorage.setItem(
-                        "scannedEntries",
-                        JSON.stringify(scannedEntries)
-                      );
-                      rebuildTable();
-                      showToast(`Signed out: ${existing.name}`, "info");
-                    }
-                  } catch {
-                    showToast("Invalid QR code format.", "error");
-                  }
+                  handleScan(result.getText());
                 }
               }
             );
-
             isScanning = true;
+            updateContainerBorder();
             updateScanBtn();
           })
           .catch((err) => showToast("Camera error: " + err, "error"));
-        isScanning = true;
-        updateContainerState();
-        updateScanBtn();
       }
 
       function stopScanner() {
@@ -304,26 +277,110 @@
         if (video.srcObject)
           video.srcObject.getTracks().forEach((track) => track.stop());
         isScanning = false;
+        updateContainerBorder();
         updateScanBtn();
-        isScanning = false;
-        updateContainerState();
-        updateScanBtn();
+      }
+
+      function updateContainerBorder() {
+        container.classList.remove("border-green-500", "border-red-500");
+        container.classList.add(
+          isScanning ? "border-green-500" : "border-red-500"
+        );
       }
 
       function updateScanBtn() {
-        toggleBtn.textContent = isScanning ? "Stop Scanning" : "Start Scanning";
+        const btn = document.getElementById("toggleScan");
+        btn.classList.remove("border-red-500", "border-green-500");
+        btn.classList.add(isScanning ? "border-green-500" : "border-red-500");
       }
 
-      function submitBib() {
+      // Core scan logic (Sign in / Sign out / Duplicate / Error)
+      function handleScan(payload) {
+        try {
+          const [name, email] = atob(payload)
+            .split("|")
+            .map((str) => str.trim());
+          const eventInput = document.getElementById("eventInput").value.trim();
+          if (!eventInput)
+            return showToast("Please enter an event name.", "error");
+          currentEvent = eventInput;
+
+          const existing = scannedEntries.find(
+            (e) => e.email === email && e.event === currentEvent
+          );
+
+          if (existing) {
+            if (existing.name !== name) {
+              return showToast(
+                `License reused by another person! (${existing.name})`,
+                "error"
+              );
+            }
+
+            const now = new Date();
+            const start = new Date(existing.startTime);
+            const diffSecs = (now - start) / 1000;
+
+            if (!existing.finishTime && diffSecs >= 30) {
+              existing.finishTime = now.toISOString();
+              localStorage.setItem(
+                "scannedEntries",
+                JSON.stringify(scannedEntries)
+              );
+              rebuildTable();
+              flashSuccess();
+              return showToast(`Signed out: ${existing.name}`, "info");
+            }
+
+            if (!existing.finishTime && diffSecs < 30) {
+              return; // Ignore silent duplicate
+            }
+
+            return showToast("Already signed in and out.", "error");
+          }
+
+          // New entry — start modal for bib
+          currentParticipant = { name, email, code: payload };
+          showBibModal();
+        } catch {
+          showToast("Invalid QR code format", "error");
+        }
+      }
+
+      function showBibModal() {
+        modalName.textContent = currentParticipant.name;
+        modalLicense.textContent = `License: ${currentParticipant.email}`;
+        bibInput.value = "";
+        bibModal.style.display = "flex";
+
+        // Suggest next 5 bibs
+        quickBibs.innerHTML = "";
+        let lastBib = Math.max(
+          0,
+          ...scannedEntries.map((e) => parseInt(e.bib) || 0)
+        );
+        for (let i = 1; i <= 5; i++) {
+          const b = lastBib + i;
+          const btn = document.createElement("button");
+          btn.textContent = b;
+          btn.className = "px-3 py-1 bg-gray-200 rounded hover:bg-gray-300";
+          btn.onclick = () => {
+            bibInput.value = b;
+          };
+          quickBibs.appendChild(btn);
+        }
+      }
+
+      function confirmBib() {
         const bib = bibInput.value.trim();
         if (!bib) return showToast("Please enter a bib number.", "error");
 
-        const timestamp = new Date().toISOString();
+        const now = new Date().toISOString();
         const entry = {
           ...currentParticipant,
           bib,
           event: currentEvent,
-          startTime: timestamp,
+          startTime: now,
           finishTime: "",
         };
 
@@ -331,12 +388,10 @@
         localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
         appendTableRow(entry);
         document.getElementById("scannedSection").classList.remove("hidden");
+        bibModal.style.display = "none";
+        flashSuccess();
         showToast(`Signed in: ${entry.name}`, "success");
-        container.classList.add("flash-success");
-        setTimeout(() => container.classList.remove("flash-success"), 900);
         currentParticipant = null;
-        bibInput.value = "";
-        bibForm.classList.add("hidden");
       }
 
       function appendTableRow(entry) {
@@ -346,18 +401,16 @@
             ? new Date(iso).toLocaleTimeString("en-GB", { hour12: false })
             : "";
         row.innerHTML = `
-        <td class="px-4 py-2">${entry.event}</td>
-        <td class="px-4 py-2">${entry.name}</td>
-        <td class="px-4 py-2">${entry.email}</td>
-        <td class="px-4 py-2">${entry.bib}</td>
-        <td class="px-4 py-2">${formatTime(entry.startTime)}</td>
-        <td class="px-4 py-2">${formatTime(entry.finishTime)}</td>
-        <td class="px-4 py-2 text-right">
-          <button onclick="removeEntry('${
-            entry.code
-          }')" class="text-red-600 hover:underline">Remove</button>
-        </td>
-      `;
+      <td class="px-4 py-2">${entry.event}</td>
+      <td class="px-4 py-2">${entry.name}</td>
+      <td class="px-4 py-2">${entry.email}</td>
+      <td class="px-4 py-2">${entry.bib}</td>
+      <td class="px-4 py-2">${formatTime(entry.startTime)}</td>
+      <td class="px-4 py-2">${formatTime(entry.finishTime)}</td>
+      <td class="px-4 py-2 text-right"><button onclick="removeEntry('${
+        entry.code
+      }')" class="text-red-600 hover:underline">Remove</button></td>
+    `;
         scannedTableBody.appendChild(row);
       }
 
@@ -371,13 +424,10 @@
         scannedEntries = scannedEntries.filter((e) => e.code !== code);
         localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
         rebuildTable();
-        if (!scannedEntries.length)
-          document.getElementById("scannedSection").classList.add("hidden");
       }
 
       function resetAll() {
-        if (!confirm("Are you sure you want to delete all scanned entries?"))
-          return;
+        if (!confirm("Reset all data?")) return;
         scannedEntries = [];
         localStorage.removeItem("scannedEntries");
         rebuildTable();
@@ -386,18 +436,22 @@
 
       function downloadCSV() {
         if (!scannedEntries.length) return alert("No entries to download.");
-        const csv =
+        const csvHeader = [
+          "Name",
+          "License",
+          "Bib",
+          "Event",
+          "Start Time",
+          "Finish Time",
+        ];
+        const csvRows = scannedEntries.map(
+          (e) =>
+            `"${e.name}","${e.email}","${e.bib}","${e.event}","${e.startTime}","${e.finishTime}"`
+        );
+        const csvContent =
           "data:text/csv;charset=utf-8," +
-          ["Name,License,Bib,Event,Start Time,Finish Time"]
-            .concat(
-              scannedEntries.map(
-                (e) =>
-                  `"${e.name}","${e.email}","${e.bib}","${e.event}","${e.startTime}","${e.finishTime}"`
-              )
-            )
-            .join("\n");
-
-        const encodedUri = encodeURI(csv);
+          [csvHeader.join(","), ...csvRows].join("\n");
+        const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", "scanned_entries.csv");
@@ -410,24 +464,118 @@
         toastMsg.textContent = message;
         toast.classList.remove("bg-red-600", "bg-green-600", "bg-blue-600");
         if (type === "error") toast.classList.add("bg-red-600");
-        else if (type === "success") toast.classList.add("bg-green-600");
-        else if (type === "info") toast.classList.add("bg-blue-600");
+        if (type === "success") toast.classList.add("bg-green-600");
+        if (type === "info") toast.classList.add("bg-blue-600");
 
-        const audio = document.getElementById(
+        const sound = document.getElementById(
           {
             success: "sound-success",
-            info: "sound-info",
             error: "sound-error",
+            info: "sound-info",
           }[type]
         );
-        if (audio) {
-          audio.currentTime = 0;
-          audio.play().catch(() => {});
-        }
-
+        if (sound) sound.play().catch(() => {});
         toast.classList.add("opacity-100");
-        setTimeout(() => toast.classList.remove("opacity-100"), 5000);
+        setTimeout(() => toast.classList.remove("opacity-100"), 3000);
+      }
+
+      function flashSuccess() {
+        container.classList.add("flash-success");
+        setTimeout(() => container.classList.remove("flash-success"), 400);
+      }
+
+      function openLockModal() {
+        document.getElementById("lockModal").style.display = "flex";
+        document.getElementById("adminCodeInput").focus();
+      }
+
+      function validateAdminCode() {
+        const input = document.getElementById("adminCodeInput").value;
+        const correctCode = "1234"; // Change to your secure code
+
+        if (input === correctCode) {
+          toggleAdmin(true);
+          document.getElementById("lockModal").style.display = "none";
+          document.getElementById("adminCodeInput").value = "";
+        } else {
+          showToast("Incorrect code", "error");
+        }
+      }
+
+      function toggleAdmin(unlock) {
+        const admin = document.getElementById("adminControls");
+        const lockIcon = document.getElementById("lockIcon");
+        const unlockIcon = document.getElementById("unlockIcon");
+
+        admin.classList.toggle("hidden", !unlock);
+        lockIcon.classList.toggle("hidden", unlock);
+        unlockIcon.classList.toggle("hidden", !unlock);
       }
     </script>
+    <!-- Lock/Unlock Toggle -->
+    <div id="adminToggle" class="fixed bottom-4 right-4 z-50">
+      <!-- Lock Icon -->
+      <button
+        id="lockIcon"
+        onclick="openLockModal()"
+        class="p-3 bg-white rounded-full shadow hover:bg-gray-100 transition"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="size-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+          />
+        </svg>
+      </button>
+
+      <!-- Unlock Icon -->
+      <button
+        id="unlockIcon"
+        onclick="toggleAdmin(false)"
+        class="p-3 bg-white rounded-full shadow hover:bg-gray-100 transition hidden"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="size-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+          />
+        </svg>
+      </button>
+    </div>
+    <!-- Modal for Admin Unlock -->
+    <div id="lockModal" class="modal">
+      <div class="modal-content">
+        <h3 class="text-lg font-semibold mb-4 text-center">Enter Admin Code</h3>
+        <input
+          id="adminCodeInput"
+          type="password"
+          maxlength="4"
+          class="w-full px-4 py-2 text-center text-xl border border-gray-300 rounded-md mb-4"
+          placeholder="••••"
+        />
+        <button
+          onclick="validateAdminCode()"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold"
+        >
+          Unlock
+        </button>
+      </div>
+    </div>
   </body>
 </html>
