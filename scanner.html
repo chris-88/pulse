@@ -2,97 +2,124 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Scanner</title>
+    <title>Pulse Scanner</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: "Montserrat", sans-serif;
+        background: linear-gradient(to bottom right, #f1f1f1, #dfe4ea);
+      }
+      .glass {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .terminal-border {
+        border: 1px solid #d0d0d0;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .scanner-button {
+        transition: all 0.2s ease-in-out;
+      }
+      .scanner-button:hover {
+        transform: scale(1.02);
+      }
+
+      /* Flash effect on successful scan */
+      .flash-success {
+        animation: flash-green 0.4s ease-out;
+      }
+
+      @keyframes flash-green {
+        0% {
+          background-color: #bbf7d0;
+        }
+        100% {
+          background-color: transparent;
+        }
+      }
+    </style>
   </head>
-  <body class="bg-gray-100 text-gray-900">
+  <body class="min-h-screen flex items-center justify-center p-6">
     <div
       id="scannerContainer"
-      class="max-w-3xl mx-auto p-6 mt-10 bg-white shadow-lg rounded-md transition-all duration-300"
+      class="w-full max-w-6xl p-8 glass rounded-xl terminal-border border-red-500"
     >
-      <h1 class="text-3xl font-bold text-center mb-4">Pulse Scanner</h1>
-      <p class="text-center text-gray-600 mb-4">
-        Click the toggle below to start or stop scanning.
-      </p>
+      <h1 class="text-4xl font-semibold text-center text-gray-800 mb-6">
+        Pulse Access Scanner
+      </h1>
 
-      <!-- Event + Mode Controls -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div class="grid sm:grid-cols-3 gap-4 mb-6">
         <div>
-          <label
-            for="eventInput"
-            class="block text-sm font-medium text-gray-700 mb-1"
-            >Event Name</label
-          >
           <input
             id="eventInput"
             type="text"
-            placeholder="e.g. Charity Run 2025"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            placeholder="Event Name"
+            class="w-full px-4 py-2 bg-white/70 text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Mode</label
-          >
           <button
             id="modeToggle"
             onclick="toggleMode()"
-            class="w-full px-4 py-2 font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition"
+            class="w-full px-4 py-2 font-semibold rounded-md text-black border border-gray-300 scanner-button"
           >
-            Mode: Sign In
+            Sign In
+          </button>
+        </div>
+        <div class="text-center mb-6">
+          <button
+            id="toggleScan"
+            class="w-full px-4 py-2 font-semibold rounded-md text-black border border-gray-300 scanner-button"
+          >
+            Start Scanning
           </button>
         </div>
       </div>
 
-      <!-- Scanning Toggle -->
-      <div class="text-center mb-6">
-        <button
-          id="toggleScan"
-          class="px-6 py-2 font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-        >
-          Start Scanning
-        </button>
+      <!-- Bib Entry -->
+      <div class="hidden mb-6" id="bibForm">
+        <div class="bg-white/50 border border-gray-300 p-4 rounded-md shadow">
+          <p class="text-gray-700 mb-2" id="bibDetails">
+            Assign bib number to scanned participant.
+          </p>
+          <input
+            id="bibInput"
+            type="text"
+            placeholder="Enter Bib Number"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md mb-3"
+          />
+          <button
+            onclick="submitBib()"
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-md"
+          >
+            Confirm Entry
+          </button>
+        </div>
       </div>
 
-      <video id="video" autoplay playsinline style="display: none"></video>
-
-      <!-- Bib Assignment Form -->
-      <div
-        id="bibForm"
-        class="hidden bg-yellow-50 border border-yellow-300 p-4 rounded-md mb-6"
-      >
-        <h2 class="font-semibold text-lg mb-2">Assign Bib Number</h2>
-        <p id="bibDetails" class="text-sm mb-2 text-gray-700"></p>
-        <input
-          id="bibInput"
-          type="text"
-          placeholder="Enter Bib Number"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md mb-3"
-        />
-        <button
-          onclick="submitBib()"
-          class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-md transition"
-        >
-          Confirm Entry
-        </button>
-      </div>
-
-      <!-- Scanned Entries Table -->
+      <!-- Scanned Table -->
       <div id="scannedSection" class="mb-6 hidden">
-        <h2 class="text-xl font-semibold mb-4">Scanned Entries</h2>
-        <div class="overflow-x-auto rounded-md border">
-          <table class="w-full text-sm text-left text-gray-700">
-            <thead class="bg-gray-100 border-b text-gray-700">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-700">
+          Scanned Entries
+        </h2>
+        <div class="overflow-x-auto rounded-md border bg-white/70">
+          <table class="w-full text-sm text-left text-gray-800">
+            <thead class="bg-gray-200 text-gray-700">
               <tr>
-                <th class="px-4 py-2 text-left">Event</th>
-                <th class="px-4 py-2 text-left">Name</th>
-                <th class="px-4 py-2 text-left">License</th>
-                <th class="px-4 py-2 text-left">Bib</th>
-                <th class="px-4 py-2 text-left">Start</th>
-                <th class="px-4 py-2 text-left">Finish</th>
+                <th class="px-4 py-2">Event</th>
+                <th class="px-4 py-2">Name</th>
+                <th class="px-4 py-2">License</th>
+                <th class="px-4 py-2">Bib</th>
+                <th class="px-4 py-2">Start</th>
+                <th class="px-4 py-2">Finish</th>
                 <th class="px-4 py-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -101,55 +128,97 @@
         </div>
       </div>
 
-      <div class="flex flex-col sm:flex-row gap-4 mb-4">
+      <!-- Buttons -->
+      <div class="flex flex-col sm:flex-row gap-4">
         <button
           onclick="downloadCSV()"
-          class="flex-1 bg-gray-500 hover:bg-indigo-700 text-white font-semibold py-2 rounded-md transition"
+          class="flex-1 bg-gray-700 hover:bg-gray-900 text-white font-semibold py-2 rounded-md"
         >
           Download CSV
         </button>
         <button
           onclick="resetAll()"
-          class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-md transition"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-md"
         >
           Reset All Data
         </button>
       </div>
 
-      <p id="errorMsg" class="text-center text-red-600 mt-4 hidden"></p>
+      <!-- Hidden Scanner Video -->
+      <video id="video" autoplay playsinline style="display: none"></video>
+
+      <!-- Toast Notification -->
+      <div
+        id="toast"
+        class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50"
+      >
+        <span id="toastMessage"></span>
+      </div>
+
+      <!-- Toast Sounds -->
+      <audio
+        id="sound-success"
+        src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+        preload="auto"
+      ></audio>
+      <audio
+        id="sound-error"
+        src="https://actions.google.com/sounds/v1/emergency/emergency_siren_short_burst.ogg"
+        preload="auto"
+      ></audio>
+      <audio
+        id="sound-info"
+        src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"
+        preload="auto"
+      ></audio>
     </div>
 
+    <!-- All JavaScript at Bottom -->
     <script>
       const video = document.getElementById("video");
-      const toggleBtn = document.getElementById("toggleScan");
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toastMessage");
       const container = document.getElementById("scannerContainer");
+      const toggleBtn = document.getElementById("toggleScan");
       const bibForm = document.getElementById("bibForm");
-      const bibDetails = document.getElementById("bibDetails");
       const bibInput = document.getElementById("bibInput");
-      const errorMsg = document.getElementById("errorMsg");
-      const scannedSection = document.getElementById("scannedSection");
+      const bibDetails = document.getElementById("bibDetails");
       const scannedTableBody = document.getElementById("scannedTableBody");
 
-      let codeReader;
-      let isScanning = false;
-      let currentParticipant = null;
-      let scannedEntries = [];
-      let currentMode = "signin"; // "signin" or "signout"
-      let currentEvent = "";
+      function updateContainerState() {
+        container.classList.remove("border-green-500", "border-red-500");
+        container.classList.add(
+          isScanning ? "border-green-500" : "border-red-500"
+        );
+      }
 
-      // Load from localStorage
+      let codeReader,
+        isScanning = false,
+        currentParticipant = null;
+      let scannedEntries = [],
+        currentMode = "signin",
+        currentEvent = "";
+
       window.onload = () => {
         const saved = localStorage.getItem("scannedEntries");
         if (saved) {
           scannedEntries = JSON.parse(saved);
-          scannedSection.classList.remove("hidden");
-          scannedEntries.forEach((entry) => appendTableRow(entry));
+          document.getElementById("scannedSection").classList.remove("hidden");
+          scannedEntries.forEach(appendTableRow);
         }
       };
 
-      toggleBtn.addEventListener("click", () => {
-        isScanning ? stopScanner() : startScanner();
-      });
+      function toggleMode() {
+        currentMode = currentMode === "signin" ? "signout" : "signin";
+        const btn = document.getElementById("modeToggle");
+        btn.textContent = currentMode === "signin" ? "Sign In" : "Sign Out";
+        btn.classList.toggle("bg-yellow-600");
+        btn.classList.toggle("bg-green-600");
+      }
+
+      toggleBtn.addEventListener("click", () =>
+        isScanning ? stopScanner() : startScanner()
+      );
 
       function startScanner() {
         navigator.mediaDevices
@@ -157,63 +226,63 @@
           .then((stream) => {
             video.srcObject = stream;
             video.play();
-
             codeReader = new ZXing.BrowserQRCodeReader();
-
             codeReader.decodeFromVideoElementContinuously(
               video,
               (result, err) => {
                 if (result && !currentParticipant) {
                   try {
-                    const payload = result.getText();
-                    const [name, email] = atob(payload)
+                    const [name, email] = atob(result.getText())
                       .split("|")
                       .map((str) => str.trim());
+                    const payload = result.getText();
+                    const eventName = document
+                      .getElementById("eventInput")
+                      .value.trim();
+                    if (!eventName)
+                      return showToast("Please enter an event name.", "error");
+                    currentEvent = eventName;
 
                     if (currentMode === "signin") {
-                      // Block duplicate QR code
-                      if (scannedEntries.find((e) => e.code === payload)) {
-                        showToast(
-                          "This QR code has already been scanned.",
+                      if (scannedEntries.find((e) => e.code === payload))
+                        return showToast(
+                          "This QR has already been scanned.",
                           "error"
                         );
-                        return;
-                      }
-
-                      // Block same email used by a different person
                       const existing = scannedEntries.find(
                         (e) => e.email === email
                       );
-                      if (existing && existing.name !== name) {
-                        showToast(
-                          `This license number is already used by "${existing.name}".`,
+                      if (existing && existing.name !== name)
+                        return showToast(
+                          "This license is already used by another participant.",
                           "error"
                         );
-                        return;
-                      }
-                    } else if (currentMode === "signout") {
+
+                      currentParticipant = { name, email, code: payload };
+                      bibForm.classList.remove("hidden");
+                      bibDetails.textContent = `Assign Bib Number to ${name} (${email})`;
+                      bibInput.focus();
+                    } else {
                       const existing = scannedEntries.find(
                         (e) =>
                           e.email === email &&
-                          e.event ===
-                            document
-                              .getElementById("eventInput")
-                              .value.trim() &&
+                          e.event === eventName &&
                           !e.finishTime
                       );
-
-                      if (!existing) {
-                        showToast(
-                          "This user hasn't signed in or is already signed out.",
+                      if (!existing)
+                        return showToast(
+                          "User not signed in or already signed out.",
                           "error"
                         );
-                        return;
-                      }
-                    }
 
-                    currentParticipant = { name, email, code: payload };
-                    showBibForm(name, email);
-                    clearError();
+                      existing.finishTime = new Date().toISOString();
+                      localStorage.setItem(
+                        "scannedEntries",
+                        JSON.stringify(scannedEntries)
+                      );
+                      rebuildTable();
+                      showToast(`Signed out: ${existing.name}`, "info");
+                    }
                   } catch {
                     showToast("Invalid QR code format.", "error");
                   }
@@ -222,107 +291,49 @@
             );
 
             isScanning = true;
-            updateUIState();
+            updateScanBtn();
           })
-          .catch((err) => {
-            showToast("Camera error: " + err, "error");
-          });
+          .catch((err) => showToast("Camera error: " + err, "error"));
+        isScanning = true;
+        updateContainerState();
+        updateScanBtn();
       }
 
       function stopScanner() {
-        if (codeReader) {
-          codeReader.reset();
-          codeReader = null;
-        }
-        if (video.srcObject) {
+        if (codeReader) codeReader.reset();
+        if (video.srcObject)
           video.srcObject.getTracks().forEach((track) => track.stop());
-          video.srcObject = null;
-        }
-
         isScanning = false;
-        updateUIState();
+        updateScanBtn();
+        isScanning = false;
+        updateContainerState();
+        updateScanBtn();
       }
 
-      function updateUIState() {
+      function updateScanBtn() {
         toggleBtn.textContent = isScanning ? "Stop Scanning" : "Start Scanning";
-        toggleBtn.classList.toggle("bg-blue-600", !isScanning);
-        toggleBtn.classList.toggle("hover:bg-blue-700", !isScanning);
-        toggleBtn.classList.toggle("bg-red-600", isScanning);
-        toggleBtn.classList.toggle("hover:bg-red-700", isScanning);
-
-        container.classList.toggle("border-4", isScanning);
-        container.classList.toggle("border-green-500", isScanning);
-      }
-
-      function showBibForm(name, email) {
-        bibDetails.textContent = `Name: ${name} | Email: ${email}`;
-
-        if (currentMode === "signin") {
-          bibForm.classList.remove("hidden");
-          bibInput.focus();
-        } else if (currentMode === "signout") {
-          // Auto-submit for sign-out, no bib required
-          submitBib();
-        }
       }
 
       function submitBib() {
-        currentEvent = document.getElementById("eventInput").value.trim();
-
-        if (!currentEvent) {
-          showToast("Please enter an event name first.", "error");
-          return;
-        }
+        const bib = bibInput.value.trim();
+        if (!bib) return showToast("Please enter a bib number.", "error");
 
         const timestamp = new Date().toISOString();
+        const entry = {
+          ...currentParticipant,
+          bib,
+          event: currentEvent,
+          startTime: timestamp,
+          finishTime: "",
+        };
 
-        if (currentMode === "signin") {
-          const bib = bibInput.value.trim();
-          if (!bib) {
-            alert("Please enter a bib number.");
-            return;
-          }
-
-          const entry = {
-            ...currentParticipant,
-            bib,
-            event: currentEvent,
-            startTime: timestamp,
-            finishTime: "",
-          };
-
-          scannedEntries.push(entry);
-          localStorage.setItem(
-            "scannedEntries",
-            JSON.stringify(scannedEntries)
-          );
-          appendTableRow(entry);
-          showToast(`Signed in: ${entry.name}`, "success");
-          scannedSection.classList.remove("hidden");
-        } else if (currentMode === "signout") {
-          const existing = scannedEntries.find(
-            (e) =>
-              e.email === currentParticipant.email &&
-              e.event === currentEvent &&
-              !e.finishTime
-          );
-
-          if (existing) {
-            existing.finishTime = timestamp;
-            localStorage.setItem(
-              "scannedEntries",
-              JSON.stringify(scannedEntries)
-            );
-            rebuildTable();
-            showToast(`Signed out: ${existing.name}`, "info");
-          } else {
-            showToast(
-              "This user hasn't signed in or is already signed out.",
-              "error"
-            );
-          }
-        }
-
+        scannedEntries.push(entry);
+        localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
+        appendTableRow(entry);
+        document.getElementById("scannedSection").classList.remove("hidden");
+        showToast(`Signed in: ${entry.name}`, "success");
+        container.classList.add("flash-success");
+        setTimeout(() => container.classList.remove("flash-success"), 900);
         currentParticipant = null;
         bibInput.value = "";
         bibForm.classList.add("hidden");
@@ -330,26 +341,23 @@
 
       function appendTableRow(entry) {
         const row = document.createElement("tr");
-        const formatTime = (iso) => {
-          if (!iso) return "";
-          const d = new Date(iso);
-          return d.toLocaleTimeString("en-GB", { hour12: false }); // 24-hour format
-        };
-
+        const formatTime = (iso) =>
+          iso
+            ? new Date(iso).toLocaleTimeString("en-GB", { hour12: false })
+            : "";
         row.innerHTML = `
-  <td class="px-4 py-2">${entry.event}</td>
-  <td class="px-4 py-2">${entry.name}</td>
-  <td class="px-4 py-2">${entry.email}</td>
-  <td class="px-4 py-2">${entry.bib || ""}</td>
-  <td class="px-4 py-2">${formatTime(entry.startTime)}</td>
-  <td class="px-4 py-2">${formatTime(entry.finishTime)}</td>
-  <td class="px-4 py-2 text-right">
-    <button onclick="removeEntry('${
-      entry.code
-    }')" class="text-red-600 hover:underline">Remove</button>
-  </td>
-`;
-
+        <td class="px-4 py-2">${entry.event}</td>
+        <td class="px-4 py-2">${entry.name}</td>
+        <td class="px-4 py-2">${entry.email}</td>
+        <td class="px-4 py-2">${entry.bib}</td>
+        <td class="px-4 py-2">${formatTime(entry.startTime)}</td>
+        <td class="px-4 py-2">${formatTime(entry.finishTime)}</td>
+        <td class="px-4 py-2 text-right">
+          <button onclick="removeEntry('${
+            entry.code
+          }')" class="text-red-600 hover:underline">Remove</button>
+        </td>
+      `;
         scannedTableBody.appendChild(row);
       }
 
@@ -358,21 +366,36 @@
         scannedEntries.forEach(appendTableRow);
       }
 
-      function downloadCSV() {
-        if (!scannedEntries.length) {
-          alert("No entries to download.");
-          return;
-        }
+      function removeEntry(code) {
+        if (!confirm("Remove this entry?")) return;
+        scannedEntries = scannedEntries.filter((e) => e.code !== code);
+        localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
+        rebuildTable();
+        if (!scannedEntries.length)
+          document.getElementById("scannedSection").classList.add("hidden");
+      }
 
+      function resetAll() {
+        if (!confirm("Are you sure you want to delete all scanned entries?"))
+          return;
+        scannedEntries = [];
+        localStorage.removeItem("scannedEntries");
+        rebuildTable();
+        document.getElementById("scannedSection").classList.add("hidden");
+      }
+
+      function downloadCSV() {
+        if (!scannedEntries.length) return alert("No entries to download.");
         const csv =
           "data:text/csv;charset=utf-8," +
-          ["Name,Email,Bib Number,Timestamp"]
+          ["Name,Email,Bib,Event,Start Time,Finish Time"]
             .concat(
               scannedEntries.map(
-                (e) => `"${e.name}","${e.email}","${e.bib}","${e.timestamp}"`
+                (e) =>
+                  `"${e.name}","${e.email}","${e.bib}","${e.event}","${e.startTime}","${e.finishTime}"`
               )
             )
-            .join("\n");
+            .join("\\n");
 
         const encodedUri = encodeURI(csv);
         const link = document.createElement("a");
@@ -383,114 +406,28 @@
         document.body.removeChild(link);
       }
 
-      function clearError() {
-        errorMsg.textContent = "";
-        errorMsg.classList.add("hidden");
-      }
-
-      function resetAll() {
-        if (!confirm("Are you sure you want to delete all scanned entries?"))
-          return;
-
-        scannedEntries = [];
-        localStorage.removeItem("scannedEntries");
-        scannedTableBody.innerHTML = "";
-        scannedSection.classList.add("hidden");
-      }
-
-      function removeEntry(code) {
-        if (!confirm("Remove this entry?")) return;
-
-        scannedEntries = scannedEntries.filter((e) => e.code !== code);
-        localStorage.setItem("scannedEntries", JSON.stringify(scannedEntries));
-
-        // Clear and rebuild table
-        scannedTableBody.innerHTML = "";
-        scannedEntries.forEach((entry) => appendTableRow(entry));
-
-        if (scannedEntries.length === 0) {
-          scannedSection.classList.add("hidden");
-        }
-      }
-
       function showToast(message, type = "error") {
-        const toast = document.getElementById("toast");
-        const toastMsg = document.getElementById("toastMessage");
-
         toastMsg.textContent = message;
-
-        // Reset and apply styles
         toast.classList.remove("bg-red-600", "bg-green-600", "bg-blue-600");
         if (type === "error") toast.classList.add("bg-red-600");
         else if (type === "success") toast.classList.add("bg-green-600");
         else if (type === "info") toast.classList.add("bg-blue-600");
 
-        // Play sound
-        const soundId = {
-          success: "sound-success",
-          info: "sound-info",
-          error: "sound-error",
-        }[type];
-
-        const audio = document.getElementById(soundId);
+        const audio = document.getElementById(
+          {
+            success: "sound-success",
+            info: "sound-info",
+            error: "sound-error",
+          }[type]
+        );
         if (audio) {
           audio.currentTime = 0;
-          audio.play().catch(() => {}); // Just in case autoplay is blocked
+          audio.play().catch(() => {});
         }
 
-        // Show toast
         toast.classList.add("opacity-100");
-
-        setTimeout(() => {
-          toast.classList.remove("opacity-100");
-        }, 3000);
-      }
-
-      function toggleMode() {
-        currentMode = currentMode === "signin" ? "signout" : "signin";
-        const btn = document.getElementById("modeToggle");
-
-        if (currentMode === "signin") {
-          btn.textContent = "Mode: Sign In";
-          btn.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
-          btn.classList.add("bg-green-600", "hover:bg-green-700");
-        } else {
-          btn.textContent = "Mode: Sign Out";
-          btn.classList.remove("bg-green-600", "hover:bg-green-700");
-          btn.classList.add("bg-yellow-600", "hover:bg-yellow-700");
-        }
+        setTimeout(() => toast.classList.remove("opacity-100"), 5000);
       }
     </script>
-    <!-- Toast Notification -->
-    <div
-      id="toast"
-      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50"
-    >
-      <span id="toastMessage"></span>
-    </div>
-
-    <!-- Toast Sounds -->
-    <audio
-      id="sound-error"
-      src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"
-      preload="auto"
-    ></audio>
-    <audio
-      id="sound-info"
-      src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"
-      preload="auto"
-    ></audio>
-    <audio
-      id="sound-success"
-      src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-      preload="auto"
-    ></audio>
   </body>
-  <!-- Toast Notification -->
-  <div
-    id="toast"
-    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50"
-  >
-    <span id="toastMessage"></span>
-  </div>
 </html>
