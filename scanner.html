@@ -388,14 +388,14 @@
         if (!scannedEntries.length) return alert("No entries to download.");
         const csv =
           "data:text/csv;charset=utf-8," +
-          ["Name,Email,Bib,Event,Start Time,Finish Time"]
+          ["Name,License,Bib,Event,Start Time,Finish Time"]
             .concat(
               scannedEntries.map(
                 (e) =>
                   `"${e.name}","${e.email}","${e.bib}","${e.event}","${e.startTime}","${e.finishTime}"`
               )
             )
-            .join("\\n");
+            .join("\n");
 
         const encodedUri = encodeURI(csv);
         const link = document.createElement("a");
