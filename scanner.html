@@ -90,9 +90,9 @@
                 <th class="px-4 py-2 text-left">Event</th>
                 <th class="px-4 py-2 text-left">Name</th>
                 <th class="px-4 py-2 text-left">License</th>
-                <th class="px-4 py-2 text-left">Bib Number</th>
-                <th class="px-4 py-2 text-left">Start Time</th>
-                <th class="px-4 py-2 text-left">Finish Time</th>
+                <th class="px-4 py-2 text-left">Bib</th>
+                <th class="px-4 py-2 text-left">Start</th>
+                <th class="px-4 py-2 text-left">Finish</th>
                 <th class="px-4 py-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -173,7 +173,10 @@
                     if (currentMode === "signin") {
                       // Block duplicate QR code
                       if (scannedEntries.find((e) => e.code === payload)) {
-                        showToast("This QR code has already been scanned.");
+                        showToast(
+                          "This QR code has already been scanned.",
+                          "error"
+                        );
                         return;
                       }
 
@@ -183,7 +186,8 @@
                       );
                       if (existing && existing.name !== name) {
                         showToast(
-                          `This email is already used by "${existing.name}".`
+                          `This license number is already used by "${existing.name}".`,
+                          "error"
                         );
                         return;
                       }
@@ -200,7 +204,8 @@
 
                       if (!existing) {
                         showToast(
-                          "This user hasn't signed in or is already signed out."
+                          "This user hasn't signed in or is already signed out.",
+                          "error"
                         );
                         return;
                       }
@@ -210,7 +215,7 @@
                     showBibForm(name, email);
                     clearError();
                   } catch {
-                    showToast("Invalid QR code format.");
+                    showToast("Invalid QR code format.", "error");
                   }
                 }
               }
@@ -220,7 +225,7 @@
             updateUIState();
           })
           .catch((err) => {
-            showToast("Camera error: " + err);
+            showToast("Camera error: " + err, "error");
           });
       }
 
@@ -265,7 +270,7 @@
         currentEvent = document.getElementById("eventInput").value.trim();
 
         if (!currentEvent) {
-          showToast("Please enter an event name first.");
+          showToast("Please enter an event name first.", "error");
           return;
         }
 
@@ -292,6 +297,7 @@
             JSON.stringify(scannedEntries)
           );
           appendTableRow(entry);
+          showToast(`Signed in: ${entry.name}`, "success");
           scannedSection.classList.remove("hidden");
         } else if (currentMode === "signout") {
           const existing = scannedEntries.find(
@@ -308,8 +314,12 @@
               JSON.stringify(scannedEntries)
             );
             rebuildTable();
+            showToast(`Signed out: ${existing.name}`, "info");
           } else {
-            showToast("This user hasn't signed in or is already signed out.");
+            showToast(
+              "This user hasn't signed in or is already signed out.",
+              "error"
+            );
           }
         }
 
@@ -409,12 +419,26 @@
 
         toastMsg.textContent = message;
 
-        // Apply type styles
-        toast.classList.remove("bg-red-600", "bg-green-600", "bg-yellow-500");
+        // Reset and apply styles
+        toast.classList.remove("bg-red-600", "bg-green-600", "bg-blue-600");
         if (type === "error") toast.classList.add("bg-red-600");
         else if (type === "success") toast.classList.add("bg-green-600");
-        else if (type === "warning") toast.classList.add("bg-yellow-500");
+        else if (type === "info") toast.classList.add("bg-blue-600");
 
+        // Play sound
+        const soundId = {
+          success: "sound-success",
+          info: "sound-info",
+          error: "sound-error",
+        }[type];
+
+        const audio = document.getElementById(soundId);
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch(() => {}); // Just in case autoplay is blocked
+        }
+
+        // Show toast
         toast.classList.add("opacity-100");
 
         setTimeout(() => {
@@ -437,6 +461,30 @@
         }
       }
     </script>
+    <!-- Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 z-50"
+    >
+      <span id="toastMessage"></span>
+    </div>
+
+    <!-- Toast Sounds -->
+    <audio
+      id="sound-error"
+      src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"
+      preload="auto"
+    ></audio>
+    <audio
+      id="sound-info"
+      src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"
+      preload="auto"
+    ></audio>
+    <audio
+      id="sound-success"
+      src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+      preload="auto"
+    ></audio>
   </body>
   <!-- Toast Notification -->
   <div
